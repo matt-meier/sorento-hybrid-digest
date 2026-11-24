@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2022 Kia Sorento Hybrid | 108K Mile Ownership Dashboard &amp; Digest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="status-banner" class="status-banner hidden" role="status"></div>
+
+  <main class="canvas">
+    <!-- HEADER -->
+    <header class="page-header">
+      <h1 id="main-headline">108K Miles at $0.57/Mile: 2022 Kia Sorento Hybrid Runs 40% Below National SUV Costs</h1>
+      <p id="main-subtitle" class="subtitle">
+        April 2022 to November 2026 &nbsp;|&nbsp; 108,534 miles driven &nbsp;|&nbsp; 296 fill-ups &nbsp;|&nbsp; 36 maintenance visits &nbsp;|&nbsp; Hybrid dashboard and ownership digest
+      </p>
+    </header>
+
+    <!-- KPI STRIP -->
+    <section class="kpi-grid" aria-label="Key Ownership Metrics">
+      <article class="kpi-card">
+        <div id="kpi-cpm" class="kpi-value navy">$0.57 / mi</div>
+        <div id="kpi-cpm-sub" class="kpi-label">All-In TCO ($0.27 Operating)</div>
+      </article>
+      <article class="kpi-card">
+        <div id="kpi-mpg" class="kpi-value blue">34.1 MPG</div>
+        <div id="kpi-mpg-sub" class="kpi-label">True Lifetime (3,187.3 gal)</div>
+      </article>
+      <article class="kpi-card">
+        <div id="kpi-ppg" class="kpi-value blue">$3.21 / gal</div>
+        <div id="kpi-ppg-sub" class="kpi-label">Weighted Avg ($10,239 Fuel)</div>
+      </article>
+      <article class="kpi-card">
+        <div id="kpi-maint" class="kpi-value orange">$5,077</div>
+        <div id="kpi-maint-sub" class="kpi-label">Maintenance (4.7¢ / mi)</div>
+      </article>
+    </section>
+
+    <!-- ROW 1: COST BENCHMARKS + GAS PRICE OVER TIME -->
+    <section class="two-col-grid">
+      <article class="panel-card">
+        <div class="panel-header">
+          <div>
+            <h2>Cost Per Mile Beats AAA and IRS Benchmarks</h2>
+            <p class="panel-sub">
+              2026 benchmarks:
+              <a href="https://newsroom.aaa.com/auto/your-driving-costs/" target="_blank" rel="noopener noreferrer">AAA Medium SUV (96.3¢)</a>
+              &nbsp;|&nbsp;
+              <a href="https://www.irs.gov/tax-professionals/standard-mileage-rates" target="_blank" rel="noopener noreferrer">IRS H2 Standard Rate (76.0¢)</a>
+            </p>
+          </div>
+        </div>
+        <div id="chart-benchmarks" class="chart-box"></div>
+      </article>
+
+      <article class="panel-card">
+        <div class="panel-header split">
+          <div>
+            <h2 id="gas-chart-title">Gas Price Peaked at $4.65/gal on West Coast Trip</h2>
+            <p id="gas-chart-sub" class="panel-sub">
+              Area: monthly weighted $/gal &nbsp;|&nbsp; Dots: 296 individual fill-ups (hover for details)
+            </p>
+          </div>
+          <div class="toggle-group" role="group" aria-label="Gas Price Normalization">
+            <button type="button" id="btn-gas-actual" class="toggle-btn active">Actual</button>
+            <button type="button" id="btn-gas-ne" class="toggle-btn">NE-Normalized</button>
+          </div>
+        </div>
+        <div id="chart-gas-time" class="chart-box"></div>
+      </article>
+    </section>
+
+    <!-- ROW 2: FILL-UP GEOGRAPHY + SCROLLABLE MAINTENANCE LOG -->
+    <section class="two-col-grid">
+      <article class="panel-card">
+        <div class="panel-header">
+          <div>
+            <h2 id="geo-title">Where I Fill Up: 92% in NE and MO Across 11 States</h2>
+            <p id="geo-sub" class="panel-sub">
+              296 geocoded stops &nbsp;|&nbsp; Sam's Club: 134 ($2.96/gal) &nbsp;|&nbsp; Shell: 34 &nbsp;|&nbsp; Casey's: 30 &nbsp;|&nbsp; Costco: 13
+            </p>
+          </div>
+        </div>
+        <div id="chart-locations" class="chart-box"></div>
+      </article>
+
+      <article class="panel-card">
+        <div class="panel-header split">
+          <div>
+            <h2 id="maint-title">Maintenance Log (36 Visits)</h2>
+            <p id="maint-sub" class="panel-sub">
+              $5,077.04 logged &nbsp;|&nbsp; ~7,989 mi oil interval &nbsp;|&nbsp; 95% brake life at 98.1K mi
+            </p>
+          </div>
+          <input type="search" id="maint-filter" class="table-search" placeholder="Filter action or shop..." aria-label="Filter maintenance log" />
+        </div>
+        <div class="table-scroll" tabindex="0" aria-label="Scrollable Maintenance Log">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="num">Miles</th>
+                <th>Action</th>
+                <th>Vendor</th>
+                <th class="num">Cost</th>
+              </tr>
+            </thead>
+            <tbody id="maint-tbody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <!-- ROW 3: HYBRID OWNERSHIP DIGEST + SUPPORTING CHARTS -->
+    <section class="digest-wrapper">
+      <div class="digest-header">
+        <h2>Hybrid Ownership Digest: Key Value Questions and Supporting Evidence</h2>
+        <p class="panel-sub">
+          Verified sources:
+          <a href="https://www.fueleconomy.gov/feg/Find.do?action=sbs&id=44699" target="_blank" rel="noopener noreferrer">EPA Fuel Economy (fueleconomy.gov)</a>
+          &nbsp;|&nbsp;
+          <a href="https://newsroom.aaa.com/auto/your-driving-costs/" target="_blank" rel="noopener noreferrer">AAA Driving Costs (newsroom.aaa.com)</a>
+          &nbsp;|&nbsp;
+          <a href="https://www.irs.gov/tax-professionals/standard-mileage-rates" target="_blank" rel="noopener noreferrer">IRS Mileage Rates (irs.gov)</a>
+          &nbsp;|&nbsp;
+          <a href="https://www.nhtsa.gov/vehicle/2022/KIA/SORENTO%252520HYBRID" target="_blank" rel="noopener noreferrer">NHTSA Recalls (nhtsa.gov)</a>
+        </p>
+      </div>
+
+      <div class="digest-grid">
+        <article class="digest-card">
+          <h3>Q1. How much has the hybrid saved versus a non-hybrid Sorento?</h3>
+          <p id="q1-copy">
+            Saves an estimated <strong>$3,171</strong> (~987 gallons avoided) across 108,534 miles at your $3.21/gal weighted average, comparing 34.1 MPG true efficiency against the <a href="https://www.fueleconomy.gov/feg/Find.do?action=sbs&id=44699" target="_blank" rel="noopener noreferrer">26 MPG combined non-hybrid Sorento</a>. Fuel savings alone exceed your largest repair ($2,272 EGR and belt service at 88,775 miles).
+          </p>
+          <div id="chart-q1" class="mini-chart"></div>
+        </article>
+
+        <article class="digest-card">
+          <h3>Q2. How much does fueling at Sam's Club and Costco save?</h3>
+          <p id="q2-copy">
+            Warehouse-club stops (134 Sam's Club fills, 13 Costco fills) average <strong>$2.96/gal</strong> across 1,736.4 gallons versus <strong>$3.52/gal</strong> across 149 non-club fills, saving ~$978. Use the gas toggle above to normalize out-of-state fuel prices to Nebraska without affecting any other dashboard costs.
+          </p>
+          <div id="chart-q2" class="mini-chart"></div>
+        </article>
+
+        <article class="digest-card">
+          <h3>Q3. How do winter versus summer MPG and mileage pace look?</h3>
+          <p id="q3-copy">
+            True monthly efficiency swings from <strong>31.1 to 32.5 MPG</strong> in winter (December to March) up to <strong>34.5 to 35.1+ MPG</strong> in summer (June to August) with warmer temperatures and summer fuel blends. At 23,457 miles/year, your pace projects reaching 150,000 miles in mid-2028.
+          </p>
+          <div id="chart-q3" class="mini-chart"></div>
+        </article>
+
+        <article class="digest-card">
+          <h3>Q4. What stands out in maintenance and ownership logs?</h3>
+          <p id="q4-copy">
+            Across 36 maintenance visits ($5,077.04 total), consecutive logged oil changes average ~7,989 miles, and brake inspection at 98,098 miles confirmed <strong>95% pad life remaining</strong> via regenerative braking. Insurance records run through April 2026 ($5,937.72), and VIN/purchase contract fields stay stripped from public data.
+          </p>
+          <div id="chart-q4" class="mini-chart"></div>
+        </article>
+      </div>
+
+      <div id="milestone-strip" class="milestone-strip">
+        Milestone Pace: 108,534 miles logged through November 2026 (~150,000 miles projected mid-2028) &nbsp;|&nbsp; Automated Sync: GitHub Action updates sanitized data.json daily
+      </div>
+    </section>
+
+    <!-- BRANDED FOOTER (NO MIDDLE SECTION BETWEEN PIPES) -->
+    <footer class="branded-footer">
+      <div class="footer-icons">
+        <a href="https://www.linkedin.com/in/meier2k8/" target="_blank" rel="noopener noreferrer" aria-label="Matt Meier on LinkedIn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 3A2 2 0 0 1 21 5V19A2 2 0 0 1 19 21H5A2 2 0 0 1 3 19V5A2 2 0 0 1 5 3H19M18.5 18.5V13.2A3.26 3.26 0 0 0 15.24 9.94C14.39 9.94 13.4 10.46 12.92 11.24V10.13H10.13V18.5H12.92V13.57C12.92 12.8 13.54 12.17 14.31 12.17A1.4 1.4 0 0 1 15.71 13.57V18.5H18.5M6.88 8.56A1.68 1.68 0 0 0 8.56 6.88C8.56 5.95 7.81 5.19 6.88 5.19A1.69 1.69 0 0 0 5.19 6.88C5.19 7.81 5.95 8.56 6.88 8.56M8.27 18.5V10.13H5.5V18.5H8.27Z"/>
+          </svg>
+        </a>
+        <a href="https://public.tableau.com/app/profile/matt5450/vizzes" target="_blank" rel="noopener noreferrer" aria-label="Matt Meier on Tableau Public">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M11.6 2h.8v3.2h3.2v.8h-3.2v3.2h-.8V6H8.4v-.8h3.2V2zm-6 5.2h.7v2.4h2.4v.7H6.3v2.4h-.7v-2.4H3.2v-.7h2.4V7.2zm12 0h.7v2.4h2.4v.7h-2.4v2.4h-.7v-2.4h-2.4v-.7h2.4V7.2zM11.6 10h.8v4h4v.8h-4v4h-.8v-4h-4V14h4v-4zm-6 4.8h.7v2.4h2.4v.7H6.3v2.4h-.7v-2.4H3.2v-.7h2.4v-2.4zm12 0h.7v2.4h2.4v.7h-2.4v2.4h-.7v-2.4h-2.4v-.7h2.4v-2.4zM11.6 18.8h.8V22h-.8v-3.2z"/>
+          </svg>
+        </a>
+      </div>
+      <span class="footer-text">CREATED BY MATT MEIER &nbsp;|&nbsp; SOURCE: PERSONAL VEHICLE LOG, AAA, EPA, IRS</span>
+    </footer>
+  </main>
+
+  <div id="chart-tooltip" class="chart-tooltip" role="tooltip"></div>
+  <script src="app.js"></script>
+</body>
+</html>
