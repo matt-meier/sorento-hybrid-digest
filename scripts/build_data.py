@@ -11,10 +11,8 @@ Usage:
 import argparse
 import io
 import json
-import math
 import os
 import re
-import sys
 import urllib.request
 from datetime import datetime, timezone
 import pandas as pd
@@ -46,6 +44,15 @@ def clean_note(note_val):
         return None
     txt = str(note_val).strip()
     return txt if txt else None
+
+
+def clean_number_series(series: pd.Series) -> pd.Series:
+    cleaned = (
+        series.astype(str)
+        .str.replace(r"[\$,\s]", "", regex=True)
+        .replace({"": np.nan, "nan": np.nan, "None": np.nan, "null": np.nan, "--": np.nan, "N/A": np.nan})
+    )
+    return pd.to_numeric(cleaned, errors="coerce")
 
 
 def extract_state(row) -> str:
@@ -122,7 +129,7 @@ def transform(df_raw: pd.DataFrame) -> dict:
 
     for col in ["Mileage", "Miles Traveled", "Cost", "Gallons", "MPG", "Cost Per Gallon"]:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = clean_number_series(df[col])
 
     # Drop VIN / purchase contract metadata row (and any row containing sensitive patterns)
     df = df[~df["Notes"].apply(is_sensitive_note)].copy()
@@ -276,7 +283,6 @@ def transform(df_raw: pd.DataFrame) -> dict:
     for _, r in maint.iterrows():
         cost_val = extract_spark_plug_cost(r)
         vendor_clean = str(r["Vendor"]).strip() if pd.notna(r["Vendor"]) else "Self / Parts"
-        # Shorten vendor to business + city/state without street address
         maint_out.append({
             "date": r["Date"].strftime("%Y-%m-%d"),
             "mileage": int(r["Mileage"]) if pd.notna(r["Mileage"]) else None,
@@ -406,7 +412,6 @@ def transform(df_raw: pd.DataFrame) -> dict:
 
 def strict_validate(payload: dict):
     raw = json.dumps(payload, allow_nan=False)
-    # Ensure no VIN or sensitive text leaked into serialized JSON
     for pat in SENSITIVE_PATTERNS:
         if pat.search(raw):
             raise ValueError(f"Sensitive pattern leaked into output: {pat.pattern}")
@@ -419,6 +424,7 @@ def strict_validate(payload: dict):
 def main():
     parser = argparse.ArgumentParser(description="Build sanitized data.json for Sorento Hybrid Data App")
     parser.add_argument("--csv", default=None, help="Path to local CSV file")
+    parser.out = None
     parser.add_argument("--out", default="data.json", help="Output JSON file path")
     args = parser.parse_args()
 
