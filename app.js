@@ -53,7 +53,11 @@
     const node = document.createElementNS(SVG_NS, tag);
     if (attrs) {
       for (const [k, v] of Object.entries(attrs)) {
-        node.setAttribute(k, String(v));
+        if (v === null || v === undefined) continue;
+        if (typeof v === "number" && !Number.isFinite(v)) continue;
+        const s = String(v);
+        if (s === "NaN" || s === "undefined") continue;
+        node.setAttribute(k, s);
       }
     }
     if (parent) parent.appendChild(node);
@@ -439,39 +443,173 @@
     });
   }
 
-  /* 3. FILL-UP LOCATIONS MAP + TOP BRANDS SUMMARY */
+  /* 3. FILL-UP LOCATIONS MAP (LAMBERT CONFORMAL CONIC) + TOP BRANDS SUMMARY */
+  function createLccProjector(lat1, lat2, lat0, lon0) {
+    const rad = Math.PI / 180.0;
+    const phi1 = lat1 * rad;
+    const phi2 = lat2 * rad;
+    const phi0 = lat0 * rad;
+    const lam0 = lon0 * rad;
+    const tFn = (phi) => Math.tan(Math.PI / 4.0 - phi / 2.0);
+    const m1 = Math.cos(phi1);
+    const m2 = Math.cos(phi2);
+    const t1 = tFn(phi1);
+    const t2 = tFn(phi2);
+    const t0 = tFn(phi0);
+    const n = Math.log(m1 / m2) / Math.log(t1 / t2);
+    const F = m1 / (n * Math.pow(t1, n));
+    const rho0 = F * Math.pow(t0, n);
+
+    return function (lon, lat) {
+      const phi = lat * rad;
+      const lam = lon * rad;
+      const t = tFn(phi);
+      const rho = F * Math.pow(t, n);
+      const theta = n * (lam - lam0);
+      return [rho * Math.sin(theta), rho0 - rho * Math.cos(theta)];
+    };
+  }
+
   function renderLocations(data) {
     const container = document.getElementById("chart-locations");
     container.innerHTML = "";
-    const fillups = data.fillups;
+    const fillups = data.fillups || [];
+    const visitedStates = new Set((data.states || []).map((s) => s.state));
 
     const W = 540, H = 248;
     const svg = el("svg", { viewBox: "0 0 " + W + " " + H }, container);
 
-    // Simplified continental US silhouette scaled to [-126..-67 lon, 24..50 lat]
-    const minLon = -126.5, maxLon = -67.0;
-    const minLat = 24.0, maxLat = 50.2;
-    const mapX = 14, mapY = 10, mapW = 345, mapH = 224;
+    // USGS Contiguous US Lambert Conformal Conic (standard parallels 33N & 45N, center 39N, 96W)
+    const lcc = createLccProjector(33.0, 45.0, 39.0, -96.0);
 
-    const projX = (lon) => mapX + ((lon - minLon) / (maxLon - minLon)) * mapW;
-    const projY = (lat) => mapY + mapH - ((lat - minLat) / (maxLat - minLat)) * mapH;
-
-    const usOutline = [
-      [-124.6, 48.4], [-124.2, 46.2], [-122.4, 41.9], [-120.5, 37.8], [-117.1, 32.5],
-      [-114.6, 32.7], [-111.0, 31.3], [-104.0, 32.0], [-102.0, 29.8], [-97.1, 25.9],
-      [-94.5, 29.7], [-89.2, 29.2], [-83.5, 30.7], [-80.2, 25.4], [-81.4, 30.7],
-      [-75.5, 35.8], [-74.0, 40.7], [-70.0, 41.8], [-67.1, 44.9], [-71.5, 45.0],
-      [-79.0, 43.3], [-83.0, 42.3], [-84.8, 46.5], [-92.1, 46.8], [-95.1, 49.0],
-      [-104.0, 49.0], [-114.0, 49.0], [-123.0, 49.0]
+    const US_STATE_POLYS = [
+      ["WA",[[-124.73,48.38],[-123.12,48.16],[-122.76,48.99],[-117.03,49.00],[-117.04,46.00],[-118.98,46.00],[-121.18,45.60],[-122.76,45.68],[-124.08,46.27]]],
+      ["OR",[[-124.08,46.27],[-122.76,45.68],[-121.18,45.60],[-118.98,46.00],[-117.04,46.00],[-116.46,45.61],[-117.03,44.00],[-117.03,42.00],[-124.21,42.00],[-124.56,42.84]]],
+      ["CA",[[-124.21,42.00],[-120.00,42.00],[-120.00,39.00],[-114.63,35.00],[-114.72,32.72],[-117.13,32.53],[-118.50,34.00],[-120.64,34.58],[-121.90,36.60],[-122.51,37.78],[-123.73,38.95],[-124.41,40.44]]],
+      ["NV",[[-120.00,42.00],[-114.04,42.00],[-114.05,37.00],[-114.63,35.00],[-120.00,39.00]]],
+      ["ID",[[-117.03,49.00],[-116.05,49.00],[-116.05,47.97],[-114.56,46.65],[-114.49,45.55],[-113.00,44.45],[-111.05,44.48],[-111.05,42.00],[-117.03,42.00],[-117.03,44.00],[-116.46,45.61],[-117.04,46.00]]],
+      ["MT",[[-116.05,49.00],[-104.04,49.00],[-104.04,45.00],[-111.05,45.00],[-111.05,44.48],[-113.00,44.45],[-114.49,45.55],[-114.56,46.65],[-116.05,47.97]]],
+      ["WY",[[-111.05,45.00],[-104.05,45.00],[-104.05,41.00],[-111.05,41.00]]],
+      ["UT",[[-114.04,42.00],[-111.05,42.00],[-111.05,41.00],[-109.05,41.00],[-109.05,37.00],[-114.05,37.00]]],
+      ["AZ",[[-114.05,37.00],[-109.05,37.00],[-109.05,31.33],[-111.07,31.33],[-114.81,32.49],[-114.63,35.00]]],
+      ["NM",[[-109.05,37.00],[-103.00,37.00],[-103.04,32.00],[-106.62,32.00],[-106.53,31.78],[-108.21,31.78],[-108.21,31.33],[-109.05,31.33]]],
+      ["CO",[[-109.05,41.00],[-102.05,41.00],[-102.04,37.00],[-109.05,37.00]]],
+      ["ND",[[-104.04,49.00],[-97.23,49.00],[-96.56,45.94],[-104.04,45.94]]],
+      ["SD",[[-104.04,45.94],[-96.56,45.94],[-96.45,43.50],[-96.44,42.49],[-98.48,42.85],[-101.62,43.00],[-104.05,43.00]]],
+      ["NE",[[-104.05,43.00],[-101.62,43.00],[-98.48,42.85],[-96.44,42.49],[-95.77,41.16],[-95.31,40.00],[-102.05,40.00],[-102.05,41.00],[-104.05,41.00]]],
+      ["KS",[[-102.05,40.00],[-95.31,40.00],[-94.61,39.10],[-94.62,37.00],[-102.04,37.00]]],
+      ["OK",[[-103.00,37.00],[-94.62,37.00],[-94.43,33.64],[-96.93,33.85],[-99.99,34.56],[-100.00,36.50],[-103.00,36.50]]],
+      ["TX",[[-103.00,36.50],[-100.00,36.50],[-99.99,34.56],[-96.93,33.85],[-94.43,33.64],[-94.04,33.55],[-94.04,31.99],[-93.52,31.18],[-93.84,29.72],[-95.14,29.08],[-97.14,25.96],[-99.13,26.41],[-101.41,29.77],[-103.30,29.00],[-106.53,31.78],[-106.62,32.00],[-103.04,32.00]]],
+      ["MN",[[-97.23,49.00],[-95.15,49.38],[-94.82,48.85],[-91.64,48.05],[-89.49,48.01],[-92.09,46.78],[-92.89,45.56],[-91.22,43.50],[-96.45,43.50],[-96.56,45.94]]],
+      ["IA",[[-96.45,43.50],[-91.22,43.50],[-90.16,41.80],[-91.04,40.70],[-91.73,40.61],[-95.31,40.00],[-95.77,41.16],[-96.44,42.49]]],
+      ["MO",[[-95.31,40.00],[-91.73,40.61],[-90.18,38.80],[-89.52,37.00],[-89.13,36.50],[-90.38,35.99],[-90.15,36.50],[-94.62,36.50],[-94.62,37.00],[-94.61,39.10]]],
+      ["AR",[[-94.62,36.50],[-90.15,36.50],[-90.38,35.99],[-90.06,35.00],[-91.15,33.00],[-94.04,33.00],[-94.04,33.55],[-94.43,33.64]]],
+      ["LA",[[-94.04,33.00],[-91.15,33.00],[-91.64,31.00],[-89.75,31.00],[-89.53,30.18],[-89.15,29.15],[-90.80,29.25],[-93.84,29.72],[-93.52,31.18],[-94.04,31.99]]],
+      ["WI",[[-92.09,46.78],[-90.42,46.57],[-88.15,45.80],[-87.61,45.10],[-87.03,45.22],[-87.80,42.49],[-90.64,42.51],[-91.22,43.50],[-92.89,45.56]]],
+      ["IL",[[-90.64,42.51],[-87.80,42.49],[-87.53,41.71],[-87.53,39.35],[-88.03,37.80],[-89.13,36.99],[-89.52,37.00],[-90.18,38.80],[-91.73,40.61],[-91.04,40.70],[-90.16,41.80]]],
+      ["MI",[[-90.42,46.57],[-88.37,47.46],[-84.37,46.46],[-83.89,45.99],[-87.61,45.10],[-88.15,45.80]]],
+      ["MI",[[-85.00,45.78],[-83.40,45.35],[-82.42,42.98],[-83.45,41.73],[-86.82,41.76],[-86.25,44.30]]],
+      ["IN",[[-87.53,41.76],[-84.81,41.70],[-84.82,38.78],[-85.79,38.28],[-87.90,37.90],[-88.03,37.80],[-87.53,39.35]]],
+      ["OH",[[-84.81,41.70],[-83.45,41.73],[-82.70,41.48],[-80.52,41.98],[-80.52,40.64],[-82.00,38.80],[-84.82,38.78]]],
+      ["KY",[[-89.13,36.99],[-88.03,37.80],[-85.79,38.28],[-84.82,38.78],[-82.60,38.42],[-81.97,37.54],[-83.68,36.60],[-88.06,36.68],[-89.42,36.50]]],
+      ["TN",[[-90.06,35.00],[-89.42,36.50],[-88.06,36.68],[-83.68,36.60],[-81.65,36.59],[-84.32,35.00],[-88.20,35.00]]],
+      ["MS",[[-91.15,33.00],[-90.06,35.00],[-88.20,35.00],[-88.47,30.22],[-89.53,30.18],[-89.75,31.00],[-91.64,31.00]]],
+      ["AL",[[-88.20,35.00],[-85.61,35.00],[-85.00,32.30],[-85.00,31.00],[-87.60,31.00],[-88.47,30.22]]],
+      ["GA",[[-85.61,35.00],[-83.11,35.00],[-81.08,32.03],[-81.49,30.72],[-84.86,30.71],[-85.00,31.00],[-85.00,32.30]]],
+      ["FL",[[-87.60,31.00],[-85.00,31.00],[-84.86,30.71],[-81.49,30.72],[-80.03,26.80],[-80.32,25.25],[-81.38,25.35],[-82.70,27.60],[-84.10,30.08],[-87.52,30.28]]],
+      ["SC",[[-83.11,35.00],[-80.79,35.10],[-78.54,33.85],[-80.86,32.03],[-81.08,32.03]]],
+      ["NC",[[-84.32,35.00],[-81.65,36.59],[-75.87,36.55],[-75.50,35.25],[-77.95,33.85],[-78.54,33.85],[-80.79,35.10],[-83.11,35.00]]],
+      ["VA",[[-83.68,36.60],[-81.97,37.54],[-80.52,38.45],[-77.72,39.42],[-77.04,38.89],[-76.00,37.90],[-75.87,36.55],[-81.65,36.59]]],
+      ["WV",[[-82.60,38.42],[-80.52,40.64],[-79.48,39.72],[-77.72,39.42],[-80.52,38.45],[-81.97,37.54]]],
+      ["MD",[[-79.48,39.72],[-75.79,39.72],[-75.70,38.46],[-75.05,38.45],[-76.00,37.90],[-77.04,38.89],[-77.72,39.42]]],
+      ["DE",[[-75.79,39.72],[-75.45,39.83],[-75.05,38.45],[-75.70,38.46]]],
+      ["PA",[[-80.52,41.98],[-79.76,42.27],[-75.36,42.00],[-74.70,41.36],[-75.14,39.85],[-75.56,39.62],[-75.79,39.72],[-79.48,39.72],[-80.52,40.64]]],
+      ["NJ",[[-74.70,41.36],[-73.90,40.99],[-74.05,40.42],[-74.90,38.93],[-75.56,39.62],[-75.14,39.85]]],
+      ["NY",[[-79.76,42.27],[-78.85,43.27],[-76.25,43.60],[-74.85,45.00],[-73.35,45.01],[-73.44,42.75],[-73.50,42.75],[-73.73,42.05],[-73.66,40.99],[-72.00,41.00],[-74.05,40.70],[-74.70,41.36],[-75.36,42.00]]],
+      ["CT",[[-73.73,42.05],[-71.80,42.02],[-71.83,41.32],[-73.66,40.99]]],
+      ["RI",[[-71.80,42.02],[-71.38,42.02],[-71.12,41.48],[-71.83,41.32]]],
+      ["MA",[[-73.50,42.75],[-70.82,42.88],[-69.93,41.68],[-71.12,41.48],[-71.80,42.02],[-73.73,42.05]]],
+      ["VT",[[-73.35,45.01],[-71.50,45.01],[-72.46,42.73],[-73.44,42.75]]],
+      ["NH",[[-71.50,45.01],[-71.08,45.30],[-70.71,43.07],[-70.82,42.88],[-72.46,42.73]]],
+      ["ME",[[-71.08,45.30],[-69.22,47.46],[-67.79,47.07],[-66.95,44.81],[-70.71,43.07]]]
     ];
 
-    const polyStr = usOutline.map((p) => projX(p[0]).toFixed(1) + "," + projY(p[1]).toFixed(1)).join(" ");
-    el("polygon", {
-      points: polyStr,
-      fill: "#F1F5F9",
-      stroke: "#CBD5E1",
-      "stroke-width": "1.2"
-    }, svg);
+    // Project all state vertices to compute exact LCC bounding box
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    const projectedStates = US_STATE_POLYS.map(([abbr, ring]) => {
+      const pts = ring.map(([lon, lat]) => {
+        const [x, y] = lcc(lon, lat);
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        return [x, y];
+      });
+      return { abbr, pts };
+    });
+
+    const mapX = 12, mapY = 10, mapW = 342, mapH = 216;
+    const spanX = Math.max(1e-6, maxX - minX);
+    const spanY = Math.max(1e-6, maxY - minY);
+    const scale = Math.min(mapW / spanX, mapH / spanY);
+    const offsetX = mapX + (mapW - spanX * scale) / 2;
+    const offsetY = mapY + (mapH - spanY * scale) / 2;
+
+    const toSvg = (lon, lat) => {
+      const [x, y] = lcc(lon, lat);
+      return [
+        offsetX + (x - minX) * scale,
+        offsetY + (maxY - y) * scale
+      ];
+    };
+
+    // Draw subtle Lambert Conformal graticule parallels (30N, 40N) & meridians (110W, 96W, 82W)
+    const gratGroup = el("g", { opacity: "0.45" }, svg);
+    [30, 40].forEach((lat) => {
+      const segs = [];
+      for (let lon = -124; lon <= -68; lon += 2) {
+        const [sx, sy] = toSvg(lon, lat);
+        if (sx >= mapX && sx <= mapX + mapW && sy >= mapY && sy <= mapY + mapH) {
+          segs.push(sx.toFixed(1) + "," + sy.toFixed(1));
+        }
+      }
+      if (segs.length > 1) {
+        el("polyline", {
+          points: segs.join(" "),
+          fill: "none",
+          stroke: "#E2E8F0",
+          "stroke-width": "0.8",
+          "stroke-dasharray": "2,2"
+        }, gratGroup);
+      }
+    });
+    [-110, -96, -82].forEach((lon) => {
+      const [x1, y1] = toSvg(lon, 25.5);
+      const [x2, y2] = toSvg(lon, 48.8);
+      el("line", {
+        x1: x1.toFixed(1), y1: y1.toFixed(1),
+        x2: x2.toFixed(1), y2: y2.toFixed(1),
+        stroke: "#E2E8F0",
+        "stroke-width": "0.8",
+        "stroke-dasharray": "2,2"
+      }, gratGroup);
+    });
+
+    // Draw state polygons (tinted for visited states, subtle neutral fill for others)
+    projectedStates.forEach(({ abbr, pts }) => {
+      const isVisited = visitedStates.has(abbr);
+      const polyStr = pts
+        .map(([x, y]) => (offsetX + (x - minX) * scale).toFixed(1) + "," + (offsetY + (maxY - y) * scale).toFixed(1))
+        .join(" ");
+
+      el("polygon", {
+        points: polyStr,
+        fill: isVisited ? "#E2E8F0" : "#F8FAFC",
+        stroke: isVisited ? "#94A3B8" : "#CBD5E1",
+        "stroke-width": isVisited ? "0.95" : "0.7",
+        "stroke-linejoin": "round"
+      }, svg);
+    });
 
     // Aggregate fill-ups by rounded 0.25-deg cluster for clean proportional bubbles
     const clusters = new Map();
@@ -497,9 +635,8 @@
 
     const clusterList = Array.from(clusters.values()).sort((a, b) => a.fills - b.fills);
     clusterList.forEach((c) => {
-      const cx = projX(c.lon);
-      const cy = projY(c.lat);
-      const r = Math.min(18, 3.5 + Math.sqrt(c.fills) * 1.45);
+      const [cx, cy] = toSvg(c.lon, c.lat);
+      const r = Math.min(17, 3.2 + Math.sqrt(c.fills) * 1.4);
       const isHomeHub = c.state === "NE" || c.state === "MO";
 
       const circle = el("circle", {
@@ -507,7 +644,7 @@
         cy: cy.toFixed(1),
         r: r.toFixed(1),
         fill: isHomeHub ? "#0058A6" : "#EF9921",
-        "fill-opacity": "0.75",
+        "fill-opacity": "0.80",
         stroke: "#112E51",
         "stroke-width": "0.8",
         style: "cursor:pointer"
@@ -524,26 +661,32 @@
       });
       circle.addEventListener("mousemove", moveTip);
       circle.addEventListener("mouseleave", () => {
-        circle.setAttribute("fill-opacity", "0.75");
+        circle.setAttribute("fill-opacity", "0.80");
         hideTip();
       });
     });
 
-    // Proportional circle size legend (per tableau-viz-standards)
-    const legY = 216;
+    // Proportional circle size legend + projection caption
+    const legY = 224;
     [1, 25, 100].forEach((cnt, idx) => {
-      const lx = 26 + idx * 54;
-      const lr = Math.min(18, 3.5 + Math.sqrt(cnt) * 1.45);
+      const lx = 20 + idx * 52;
+      const lr = Math.min(17, 3.2 + Math.sqrt(cnt) * 1.4);
       el("circle", {
-        cx: lx, cy: legY - lr + 6, r: lr.toFixed(1),
-        fill: "none", stroke: "#64748B", "stroke-width": "1"
+        cx: lx, cy: legY - lr + 5, r: lr.toFixed(1),
+        fill: "none", stroke: "#64748B", "stroke-width": "0.9"
       }, svg);
       const lt = el("text", {
-        x: lx + lr + 4, y: legY + 6,
-        fill: "#5A6577", "font-size": "9.5"
+        x: lx + lr + 4, y: legY + 5,
+        fill: "#5A6577", "font-size": "9"
       }, svg);
       lt.textContent = cnt + (cnt === 1 ? " fill" : " fills");
     });
+
+    const projLbl = el("text", {
+      x: 16, y: 242,
+      fill: "#64748B", "font-size": "8.5"
+    }, svg);
+    projLbl.textContent = "Lambert Conformal Conic (33°N / 45°N) • Highlighted: 11 visited states";
 
     // Right-side Top Brands mini ranking inside card
     const panelX = 368;
@@ -553,8 +696,8 @@
     }, svg);
     hdr.textContent = "Top Stations by Visits";
 
-    const topBrands = data.top_brands.slice(0, 5);
-    const maxFills = topBrands.length ? topBrands[0].fills : 1;
+    const topBrands = (data.top_brands || []).slice(0, 5);
+    const maxFills = topBrands.length ? Math.max(1, topBrands[0].fills) : 1;
     topBrands.forEach((b, idx) => {
       const by = 44 + idx * 38;
       const shortName = b.brand.replace(" Gas Station", "");
